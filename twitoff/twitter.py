@@ -9,10 +9,11 @@ TWITTER_USERS = ['calebhicks', 'elonmusk', 'rrherr', 'SteveMartinToGo',
                  'big_ben_clock', 'IAM_SHAKESPEARE']
 
 # TODO don't have raw secrets in the code, move to .env!
-TWITTER_API_KEY = '9FiiJ2wzupovEotG3JFcv454Y'
-TWITTER_API_SECRET_KEY= 'uNc1WJc5R4aCpVhpzPJei121UJvsMaAvzNzDOC8KeJszz7Fb4s'
+TWITTER_API_KEY = ('XXX')
+TWITTER_API_SECRET_KEY= ('XXX')
 TWITTER_AUTH = tweepy.OAuthHandler(TWITTER_API_KEY, TWITTER_API_SECRET_KEY)
 TWITTER = tweepy.API(TWITTER_AUTH)
+BASILICA = basilica.Connection('XXX')
 
 def add_update_user(username):
     """Add or update a user and their Tweets, error if not a Twitter user."""
@@ -24,18 +25,27 @@ def add_update_user(username):
         # Lets get the tweets - focusing on primary (not retweet/reply)
         tweets = twitter_user.timeline(
             count=200, exclude_replies=True, include_rts=False,
-            tweet_mode='extended'
+            tweet_mode='extended', since_id=db_user.newest_tweet_id
         )
         if tweets:
             db_user.newest_tweet_id = tweets[0].id
         for tweet in tweets:
-            db_tweet = Tweet(id=tweet.id, text=tweet.full_text[:300])
-            db_user.tweet.append(db_tweet)
+            embedding = BASILICA.embed_sentence(tweet.full_text,
+                                                model='twitter')
+            db_tweet = Tweet(id=tweet.id, text=tweet.full_text[:300],
+                             embedding=embedding)
+            db_user.tweets.append(db_tweet)
             DB.session.add(db_tweet)
     except Exception as e:
-        print(f'Error processing {username}: {e}')
+        print('Error processing {}: {}'.format(username, e))
         raise e
     else:
         DB.session.commit()
-    return
+
+
+def insert_example_users():
+    """Example data to play with."""
+    add_update_user('austen')
+    add_update_user('elonmusk')
+
 
